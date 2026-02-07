@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const todoRoutes = require('./routes/todo.routes');
@@ -20,6 +21,13 @@ app.get('/api/health', async (_req, res) => {
   } catch (err) {
     res.status(500).json({ status: 'error', database: 'disconnected', error: err.message });
   }
+});
+
+// Serve React production build
+const clientBuild = path.join(__dirname, '../../client/build');
+app.use(express.static(clientBuild));
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(clientBuild, 'index.html'));
 });
 
 app.listen(PORT, () => {
