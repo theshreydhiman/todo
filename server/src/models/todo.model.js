@@ -1,14 +1,14 @@
 const pool = require('../config/db');
 
 const Todo = {
-  async findAll({ search, priority, completed, category_id, sort_by, order }) {
+  async findAll(userId, { search, priority, completed, category_id, sort_by, order }) {
     let query = `
       SELECT t.*, c.name AS category_name, c.color AS category_color
       FROM todos t
       LEFT JOIN categories c ON t.category_id = c.id
-      WHERE 1=1
+      WHERE t.user_id = ?
     `;
-    const params = [];
+    const params = [userId];
 
     if (search) {
       query += ' AND (t.title LIKE ? OR t.description LIKE ?)';
@@ -36,26 +36,26 @@ const Todo = {
     return rows;
   },
 
-  async findById(id) {
+  async findById(id, userId) {
     const [rows] = await pool.query(
       `SELECT t.*, c.name AS category_name, c.color AS category_color
        FROM todos t
        LEFT JOIN categories c ON t.category_id = c.id
-       WHERE t.id = ?`,
-      [id]
+       WHERE t.id = ? AND t.user_id = ?`,
+      [id, userId]
     );
     return rows[0];
   },
 
-  async create({ title, description, priority, due_date, category_id }) {
+  async create(userId, { title, description, priority, due_date, category_id }) {
     const [result] = await pool.query(
-      'INSERT INTO todos (title, description, priority, due_date, category_id) VALUES (?, ?, ?, ?, ?)',
-      [title, description || null, priority || 'medium', due_date || null, category_id || null]
+      'INSERT INTO todos (title, description, priority, due_date, category_id, user_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [title, description || null, priority || 'medium', due_date || null, category_id || null, userId]
     );
-    return this.findById(result.insertId);
+    return this.findById(result.insertId, userId);
   },
 
-  async update(id, fields) {
+  async update(id, userId, fields) {
     const allowed = ['title', 'description', 'completed', 'priority', 'due_date', 'category_id'];
     const updates = [];
     const params = [];
@@ -67,24 +67,24 @@ const Todo = {
       }
     }
 
-    if (updates.length === 0) return this.findById(id);
+    if (updates.length === 0) return this.findById(id, userId);
 
-    params.push(id);
-    await pool.query(`UPDATE todos SET ${updates.join(', ')} WHERE id = ?`, params);
-    return this.findById(id);
+    params.push(id, userId);
+    await pool.query(`UPDATE todos SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`, params);
+    return this.findById(id, userId);
   },
 
-  async delete(id) {
-    const [result] = await pool.query('DELETE FROM todos WHERE id = ?', [id]);
+  async delete(id, userId) {
+    const [result] = await pool.query('DELETE FROM todos WHERE id = ? AND user_id = ?', [id, userId]);
     return result.affectedRows > 0;
   },
 
-  async toggleComplete(id) {
-    await pool.query('UPDATE todos SET completed = NOT completed WHERE id = ?', [id]);
-    return this.findById(id);
+  async toggleComplete(id, userId) {
+    await pool.query('UPDATE todos SET completed = NOT completed WHERE id = ? AND user_id = ?', [id, userId]);
+    return this.findById(id, userId);
   },
 
-  async getStats() {
+  async getStats(userId) {
     const [rows] = await pool.query(`
       SELECT
         COUNT(*) AS total,
@@ -93,7 +93,8 @@ const Todo = {
         SUM(CASE WHEN priority = 'high' AND completed = 0 THEN 1 ELSE 0 END) AS high_priority_count,
         SUM(CASE WHEN due_date < CURDATE() AND completed = 0 THEN 1 ELSE 0 END) AS overdue_count
       FROM todos
-    `);
+      WHERE user_id = ?
+    `, [userId]);
     return rows[0];
   },
 };

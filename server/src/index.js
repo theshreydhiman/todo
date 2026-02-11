@@ -1,8 +1,10 @@
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const authRoutes = require('./routes/auth.routes');
 const todoRoutes = require('./routes/todo.routes');
 const categoryRoutes = require('./routes/category.routes');
+const auth = require('./middleware/auth');
 const pool = require('./config/db');
 
 const app = express();
@@ -11,8 +13,9 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/todos', todoRoutes);
-app.use('/api/categories', categoryRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/todos', auth, todoRoutes);
+app.use('/api/categories', auth, categoryRoutes);
 
 app.get('/api/health', async (_req, res) => {
   try {
