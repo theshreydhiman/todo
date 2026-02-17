@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: todo-app
+    runtime: node
+    buildCommand: chmod +x render-build.sh && ./render-build.sh
+    startCommand: cd server && node src/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false  # Set manually from Aiven
